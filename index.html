@@ -247,14 +247,59 @@
 
   @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 
+  /* ---------- abertura (loading) ---------- */
+  .intro{
+    position:fixed;inset:0;z-index:60;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;
+    background:
+      radial-gradient(900px 620px at 85% -10%, rgba(255,255,255,.9), transparent 60%),
+      radial-gradient(760px 560px at -12% 40%, rgba(201,169,138,.20), transparent 60%),
+      linear-gradient(168deg, var(--oat-light) 0%, var(--oat) 55%, var(--oat-deep) 100%);
+    transition:opacity .9s ease;
+  }
+  .intro-blur{
+    width:min(300px,64vw);height:min(300px,64vw);border-radius:50%;flex:none;
+    background:radial-gradient(circle at 42% 38%, rgba(255,255,255,.95) 0%, rgba(230,218,200,.85) 34%, rgba(214,186,138,.75) 62%, rgba(169,133,72,.45) 82%, rgba(169,133,72,0) 100%);
+    filter:blur(26px);
+    box-shadow:0 0 90px rgba(214,186,138,.55), 0 0 160px rgba(201,169,138,.35);
+    animation:introPulse 2.6s ease-in-out infinite alternate;
+    will-change:transform,opacity,filter;
+  }
+  @keyframes introPulse{
+    from{transform:scale(1);opacity:.82;filter:blur(24px)}
+    to{transform:scale(1.13);opacity:1;filter:blur(32px)}
+  }
+  .intro-word{
+    font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;
+    font-size:clamp(24px,6.4vw,32px);letter-spacing:.06em;color:var(--brown);
+    min-height:1.4em;text-align:center;padding:0 20px;
+    opacity:1;transition:opacity .45s ease, transform .45s ease;
+  }
+  .intro-word.swap{opacity:0;transform:translateY(6px)}
+  .intro.expand .intro-blur{
+    animation:none;
+    transform:scale(7);
+    filter:blur(70px);
+    opacity:.95;
+    transition:transform 1.15s ease, filter 1.15s ease, opacity 1.15s ease;
+  }
+  .intro.expand .intro-word{opacity:0;transition:opacity .4s ease}
+  .intro.done{opacity:0;pointer-events:none}
+  body.intro-lock{overflow:hidden}
+
   @media (prefers-reduced-motion: reduce){
-    .bg-lines,.bg-motion .glow,.band .track,.link-btn::before{animation:none}
+    .bg-lines,.bg-motion .glow,.band .track,.link-btn::before,.intro-blur{animation:none}
     .petal{display:none}
     *{transition:none!important}
   }
 </style>
 </head>
-<body>
+<body class="intro-lock">
+
+<div class="intro" id="intro" role="status" aria-label="Carregando">
+  <div class="intro-blur" aria-hidden="true"></div>
+  <div class="intro-word" id="introWord">Posicione...</div>
+</div>
 
 <div class="bg-motion" aria-hidden="true">
   <div class="bg-lines"></div>
@@ -330,6 +375,48 @@
 
 <script>
 (function(){
+  // Abertura: palavras do ramo passando, blur pulsando e expandindo no final
+  var intro = document.getElementById("intro");
+  var introWord = document.getElementById("introWord");
+  var reduceIntro = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var introFinished = false;
+  function finishIntro(){
+    if (introFinished || !intro) return;
+    introFinished = true;
+    intro.classList.add("expand");
+    setTimeout(function(){
+      intro.classList.add("done");
+      document.body.classList.remove("intro-lock");
+      setTimeout(function(){ if (intro.parentNode) intro.parentNode.removeChild(intro); }, 950);
+    }, reduceIntro ? 60 : 1150);
+  }
+  if (intro && introWord){
+    if (reduceIntro){
+      introWord.textContent = "Posicione...";
+      setTimeout(finishIntro, 700);
+    } else {
+      var words = ["Posicione...", "Tráfego Pago...", "Vendas...", "Estratégia..."];
+      var wi = 0;
+      var wordTimer = setInterval(function(){
+        wi++;
+        if (wi >= words.length){ clearInterval(wordTimer); return; }
+        introWord.classList.add("swap");
+        setTimeout(function(){
+          introWord.textContent = words[wi];
+          introWord.classList.remove("swap");
+        }, 450);
+      }, 1150);
+      setTimeout(function(){ clearInterval(wordTimer); finishIntro(); }, 5300);
+    }
+    intro.addEventListener("click", finishIntro);
+    // Segurança: a abertura nunca trava o link
+    setTimeout(finishIntro, 6000);
+    setTimeout(function(){
+      if (intro.parentNode) intro.parentNode.removeChild(intro);
+      document.body.classList.remove("intro-lock");
+    }, 8000);
+  }
+
   // Faixas
   var phrase = "Tráfego Pago \u2726 Posicionamento \u2726 Marketing e Vendas \u2726 Projetos Estratégicos \u2726 Solicite uma Análise \u2726 ";
   var html = "";
